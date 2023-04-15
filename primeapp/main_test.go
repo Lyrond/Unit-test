@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"io"
+	"io/ioutil"
 	"os"
 	"strings"
 	"testing"
@@ -39,6 +40,23 @@ func Test_isPrime(t *testing.T) {
 	}
 }
 
+func TestPrompt(t *testing.T) {
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	prompt()
+	w.Close()
+
+	output, _ := ioutil.ReadAll(r)
+	expected := "-> "
+
+	if string(output) != expected {
+		t.Errorf("Expected '%s', but got '%s'", expected, string(output))
+	}
+
+	os.Stdout = os.NewFile(1, "/dev/stdout")
+}
+
 func TestCheckNumbers(t *testing.T) {
 	testCases := []struct {
 		input    string
@@ -67,23 +85,18 @@ func TestCheckNumbers(t *testing.T) {
 }
 
 func Test_intro(t *testing.T) {
-	// set up a pipe to capture stdout
 	old := os.Stdout
 	r, w, _ := os.Pipe()
 	os.Stdout = w
 
-	// call the intro function
 	intro()
 
-	// restore the original stdout
 	w.Close()
 	os.Stdout = old
 
-	// read the captured output from the pipe
 	var buf bytes.Buffer
 	io.Copy(&buf, r)
 
-	// check that the output is correct
 	expectedOutput := "Is it Prime?\n" +
 		"------------\n" +
 		"Enter a whole number, and we'll tell you if it is a prime number or not. Enter q to quit.\n" +
@@ -95,34 +108,26 @@ func Test_intro(t *testing.T) {
 }
 
 func Test_readUserInput(t *testing.T) {
-	// prepare input to the function
 	input := "5\nq\n"
 	reader := strings.NewReader(input)
 
-	// replace os.Stdout with a pipe to capture the output
 	old := os.Stdout
 	r, w, _ := os.Pipe()
 	os.Stdout = w
 
-	// create a channel to indicate when the function is done
 	doneChan := make(chan bool)
 
-	// call the function
 	go readUserInput(reader, doneChan)
 
-	// wait for the function to finish
 	<-doneChan
 
-	// restore os.Stdout and read the captured output
 	w.Close()
 	var buf bytes.Buffer
 	io.Copy(&buf, r)
 	os.Stdout = old
 
-	// expected output
 	expected := "Please enter a whole number!\n-> 7 is a prime number!\n-> Goodbye.\n"
 
-	// compare the expected output with the actual output
 	if buf.String() != expected {
 		t.Errorf("readUserInput failed, expected %s but got %s", expected, buf.String())
 	}
